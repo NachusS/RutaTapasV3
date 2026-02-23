@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <base href="./">
+  <title>RutaTapas v2.0</title>
+  <meta name="description" content="App web para rutas de tapas multiciudad." />
+  <meta name="rt-app-version" content="v2.0">
+  <!-- Google Maps API Key (restringe por HTTP referrer a https://nachuss.github.io/RutaTapas/*) -->
+  <meta name="rt-gmaps-key" content="AIzaSyBlwBJfv7Fa2cVvb_gWIjBCr8Jya6RKpaU">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght;700&family=Bungee&family=Plus+Jakarta+Sans:wght;700&display=swap" rel="stylesheet" />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="stylesheet" href="css/style.css" />
+
+  <script id="rt-trailing-slash">
+    (function(){
+      try{
+        var p = window.location.pathname || '';
+        var last = p.split('/').pop() || '';
+        if(p && !p.endsWith('/') && last.indexOf('.') === -1){
+          window.location.replace(p + '/' + window.location.search + window.location.hash);
+        }
+      }catch(e){}
+    })();
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#app">Saltar al contenido</a>
+
+  <header class="app-header" role="banner">
+    <div class="container header-row">
+      <div class="brand">
+        <span class="brand-mark" aria-label="RutaTapas" aria-hidden="true">🍢</span>
+        <div class="brand-text">
+          <div class="brand-title">RutaTapas</div>
+          <div class="brand-subtitle">v2.0</div>
+        </div>
+      </div>
+</div>
+  </header>
+
+  <main id="app" class="app-main" role="main" tabindex="-1">
+  <div class="container" id="boot-fallback">
+    <section class="card pad">
+      <h1 class="h1">Cargando…</h1>
+      <p class="p">Si esta pantalla no desaparece, revisa la consola del navegador (F12) para ver el error.</p>
+    </section>
+  </div>
+</main>
+
+    <footer class="bottom-nav" role="contentinfo">
+    <nav class="bottom-nav__inner container" aria-label="Navegación inferior">
+      <a class="tab-btn" href="#/welcome" data-tab="inicio" aria-label="Inicio">
+        <span class="tab-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" focusable="false" aria-hidden="true">
+            <path d="M3 10.5 12 3l9 7.5v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z" fill="currentColor"></path>
+          </svg>
+        </span>
+        <span class="tab-txt">Inicio</span>
+      </a>
+
+      <a class="tab-btn" href="#/seleccionar" data-tab="rutas" aria-label="Rutas">
+        <span class="tab-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" focusable="false" aria-hidden="true">
+            <path d="M7 3a2 2 0 0 0-2 2v16l7-3 7 3V5a2 2 0 0 0-2-2z" fill="currentColor"></path>
+          </svg>
+        </span>
+        <span class="tab-txt">Rutas</span>
+      </a>
+
+      <a class="tab-btn" href="#/favoritos" data-tab="favoritos" aria-label="Favoritos">
+        <span class="tab-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" focusable="false" aria-hidden="true">
+            <path d="M12 21s-7-4.5-9.5-9A5.7 5.7 0 0 1 12 6.3 5.7 5.7 0 0 1 21.5 12C19 16.5 12 21 12 21z" fill="currentColor"></path>
+          </svg>
+        </span>
+        <span class="tab-txt">Favoritos</span>
+      </a>
+
+      <a class="tab-btn" href="#/mi-perfil" data-tab="perfil" aria-label="Perfil">
+        <span class="tab-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" focusable="false" aria-hidden="true">
+            <path d="M12 12a4.2 4.2 0 1 0-4.2-4.2A4.2 4.2 0 0 0 12 12zm0 2.2c-4.2 0-7.8 2.1-7.8 4.7V21h15.6v-2.1c0-2.6-3.6-4.7-7.8-4.7z" fill="currentColor"></path>
+          </svg>
+        </span>
+        <span class="tab-txt">Perfil</span>
+      </a>
+    </nav>
+  </footer>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
