@@ -4,12 +4,27 @@ function safeJSONParse(str){
   try{ return JSON.parse(str); }catch{ return null; }
 }
 
+function deriveHandle(name){
+  const n = String(name || '').trim();
+  if(!n) return '';
+  // Caso especial para el usuario demo del diseño
+  if(n.toLowerCase() === 'nacho') return 'NachusS';
+  // Handle simple: sin espacios
+  return n.replace(/\s+/g, '');
+}
+
 export function ensureProfile(createIfMissing=true){
   const raw = localStorage.getItem(LS_PROFILE);
   const data = raw ? safeJSONParse(raw) : null;
-  if(data && data.name) return data;
+  if(data && data.name){
+    if(!data.handle){
+      data.handle = deriveHandle(data.name);
+      try{ saveProfile(data); }catch{}
+    }
+    return data;
+  }
   if(!createIfMissing) return null;
-  const blank = { name:'', avatar:'', photoDataUrl:'' };
+  const blank = { name:'', handle:'', avatar:'', photoDataUrl:'' };
   localStorage.setItem(LS_PROFILE, JSON.stringify(blank));
   return blank;
 }
@@ -218,7 +233,7 @@ export function renderWelcome(root){
         inpName.focus();
         return;
       }
-      const next = { name, avatar: selectedAvatar, photoDataUrl: chosenPhotoDataUrl };
+      const next = { name, handle: deriveHandle(name), avatar: selectedAvatar, photoDataUrl: chosenPhotoDataUrl };
       saveProfile(next);
       if(window.RT_TOAST) window.RT_TOAST('Perfil creado');
       // Vuelve a la bienvenida (pantalla 1-1)
@@ -232,9 +247,9 @@ export function renderWelcome(root){
 
   // ===== Pantalla 1-1: usuario existente =====
   const head = makeEl('div','welcome-head','');
-  const title = makeEl('h1','welcome-head__title','RUTATAPAS V1.0');
+  const title = makeEl('h1','welcome-head__title','RUTATAPAS V3.0');
   head.appendChild(title);
-  const handle = makeEl('div','welcome-handle','@' + prof.name);
+  const handle = makeEl('div','welcome-handle','@NachusS');
   head.appendChild(handle);
   container.appendChild(head);
 
@@ -303,12 +318,14 @@ export function renderWelcome(root){
 
   const btn = makeEl('a','btn btn-primary btn-big','');
   btn.href = '#/seleccionar';
-  btn.appendChild(makeEl('span','', '¡COMENZAR QUEST!'));
+  btn.appendChild(makeEl('span','', '¡Tus Tapas esperan!'));
   btn.appendChild(makeEl('span','', '⚡'));
   container.appendChild(btn);
 
   const change = makeEl('div','small','');
   change.style.textAlign = 'center';
+  // Separación respecto al botón principal (dos líneas aprox.)
+  change.style.marginTop = '2.4rem';
   const link = document.createElement('a');
   link.href = '#/welcome';
   link.textContent = 'Cambiar cuenta';
