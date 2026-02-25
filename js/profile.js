@@ -316,10 +316,44 @@ export function renderWelcome(root){
   container.appendChild(hello);
   container.appendChild(sub);
 
+  function getResumeRouteId(){
+    try{
+      const active = localStorage.getItem('rt_active_route_id');
+      if(active){
+        const raw = localStorage.getItem('rt_progress_' + active);
+        const obj = raw ? safeJSONParse(raw) : null;
+        if(obj && obj.startedAt && !obj.finishedAt) return active;
+      }
+
+      // Buscar cualquier ruta en curso (startedAt y sin finishedAt)
+      let bestId = null;
+      let bestT = 0;
+      for(let i=0;i<localStorage.length;i++){
+        const k = localStorage.key(i) || '';
+        if(!k.startsWith('rt_progress_')) continue;
+        const rid = k.slice('rt_progress_'.length);
+        const obj = safeJSONParse(localStorage.getItem(k) || '') || {};
+        const t = Number(obj.startedAt || 0);
+        if(t && !obj.finishedAt && t > bestT){
+          bestT = t;
+          bestId = rid;
+        }
+      }
+      if(bestId) return bestId;
+
+      const last = localStorage.getItem('rt_last_route_id');
+      return last || null;
+    }catch(_e){
+      return localStorage.getItem('rt_last_route_id') || null;
+    }
+  }
+
+  const resumeId = getResumeRouteId();
+
   const btn = makeEl('a','btn btn-primary btn-big','');
-  btn.href = '#/seleccionar';
-  btn.appendChild(makeEl('span','', '¡Tus Tapas esperan!'));
-  btn.appendChild(makeEl('span','', '⚡'));
+  btn.href = resumeId ? ('#/ruta?r=' + encodeURIComponent(resumeId)) : '#/seleccionar';
+  btn.appendChild(makeEl('span','', 'Continuar mi Ruta'));
+  btn.appendChild(makeEl('span','', '🧭'));
   container.appendChild(btn);
 
   const change = makeEl('div','small','');

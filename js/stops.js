@@ -16,8 +16,30 @@ function getProgressKey(routeId){ return 'rt_progress_' + routeId; }
 function getProgress(routeId){
   const raw = localStorage.getItem(getProgressKey(routeId));
   const obj = raw ? safeJSONParse(raw) : null;
-  if(obj && typeof obj === 'object') return obj;
-  const blank = { startedAt: null, finishedAt: null, completedStopIds: [], stopRatings: {}, routeRating: 0 };
+  if(obj && typeof obj === 'object'){
+    let changed = false;
+    if(!Array.isArray(obj.completedStopIds)){
+      obj.completedStopIds = [];
+      changed = true;
+    }
+    if(!Array.isArray(obj.skippedStopIds)){
+      obj.skippedStopIds = [];
+      changed = true;
+    }
+    if(!obj.stopRatings || typeof obj.stopRatings !== 'object'){
+      obj.stopRatings = {};
+      changed = true;
+    }
+    if(typeof obj.routeRating !== 'number'){
+      obj.routeRating = Number(obj.routeRating || 0);
+      changed = true;
+    }
+    if(changed){
+      try{ localStorage.setItem(getProgressKey(routeId), JSON.stringify(obj)); }catch(_e){}
+    }
+    return obj;
+  }
+  const blank = { startedAt: null, finishedAt: null, completedStopIds: [], skippedStopIds: [], stopRatings: {}, routeRating: 0 };
   localStorage.setItem(getProgressKey(routeId), JSON.stringify(blank));
   return blank;
 }
@@ -36,7 +58,8 @@ function getNextStop(routeId, data, prog){
 function renderProgressUI(route, data, prog){
   const total = (data && Array.isArray(data.stops)) ? data.stops.length : 0;
   const done = (prog && Array.isArray(prog.completedStopIds)) ? prog.completedStopIds.length : 0;
-  return renderProgressBlock(total, done);
+  const skipped = (prog && Array.isArray(prog.skippedStopIds)) ? prog.skippedStopIds.length : 0;
+  return renderProgressBlock(total, done, skipped);
 }
 
 function getFavoritesKey(routeId){ return 'rt_favorites_' + routeId; }
@@ -94,8 +117,12 @@ function metersBetween(a, b){
 }
 
 function nextStop(routeId, stops, prog){
+  prog.completedStopIds = Array.isArray(prog.completedStopIds) ? prog.completedStopIds : [];
+  prog.skippedStopIds = Array.isArray(prog.skippedStopIds) ? prog.skippedStopIds : [];
   for(const s of stops){
-    if(!prog.completedStopIds.includes(s.id)) return s;
+    const done = prog.completedStopIds.includes(s.id);
+    const skipped = prog.skippedStopIds.includes(s.id);
+    if(!done && !skipped) return s;
   }
   return null;
 }
@@ -113,12 +140,16 @@ function buildStars(value, onChange){
   return wrap;
 }
 
-function renderProgressBlock(total, done){
+function renderProgressBlock(total, done, skipped){
   const wrap = makeEl('div','progress-wrap','');
   const top = makeEl('div','row spread','');
-  const left = makeEl('div','badge', done + '/' + total + ' paradas');
-  const pct = total > 0 ? Math.round((done/total)*100) : 0;
-  const right = makeEl('div','small', pct + '% completado');
+  const processed = (Number(done||0) + Number(skipped||0));
+  const left = makeEl('div','badge', processed + '/' + total + ' paradas');
+  const pct = total > 0 ? Math.round((processed/total)*100) : 0;
+  const rightTxt = (skipped > 0)
+    ? (pct + '% · ' + done + ' hechas · ' + skipped + ' saltadas')
+    : (pct + '% completado');
+  const right = makeEl('div','small', rightTxt);
   top.appendChild(left); top.appendChild(right);
 
   const bar = makeEl('div','progressbar','');
@@ -132,23 +163,36 @@ function renderProgressBlock(total, done){
 }
 
 
-function updateProgressFromDOM(done){
+function updateProgressFromDOM(prog){
   const total = Number(document.documentElement.dataset.rtTotalStops || '0') || 0;
+  const done = (prog && Array.isArray(prog.completedStopIds)) ? prog.completedStopIds.length : 0;
+  const skipped = (prog && Array.isArray(prog.skippedStopIds)) ? prog.skippedStopIds.length : 0;
+  const processed = done + skipped;
+
   const badge = document.querySelector('.route-summary .progress-wrap .badge');
   const small = document.querySelector('.route-summary .progress-wrap .small');
   const fill = document.querySelector('.route-summary .progressbar > div');
-  const pct = total > 0 ? Math.round((done/total)*100) : 0;
-  if(badge) badge.textContent = done + '/' + total + ' paradas';
-  if(small) small.textContent = pct + '% completado';
+  const pct = total > 0 ? Math.round((processed/total)*100) : 0;
+
+  if(badge) badge.textContent = processed + '/' + total + ' paradas';
+  if(small){
+    small.textContent = (skipped > 0)
+      ? (pct + '% · ' + done + ' hechas · ' + skipped + ' saltadas')
+      : (pct + '% completado');
+  }
   if(fill) fill.style.width = pct + '%';
 }
 
 
-function stopItem(routeId, stop, prog, favs){
-  prog.completedStopIds = Array.isArray(prog.completedStopIds) ? prog.completedStopIds : [];
-  const done = prog.completedStopIds.includes(stop.id);
 
-  const item = makeEl('div','item' + (done ? ' is-done' : ''),'');
+function stopItem(routeId, stop, prog, favs, allStops){
+  prog.completedStopIds = Array.isArray(prog.completedStopIds) ? prog.completedStopIds : [];
+  prog.skippedStopIds = Array.isArray(prog.skippedStopIds) ? prog.skippedStopIds : [];
+
+  const isSkipped = prog.skippedStopIds.includes(stop.id);
+  const isDone = !isSkipped && prog.completedStopIds.includes(stop.id);
+
+  const item = makeEl('div','item' + (isDone ? ' is-done' : '') + (isSkipped ? ' is-skipped' : ''),'');
   item.dataset.stopId = stop.id;
 
   const img = document.createElement('img');
@@ -164,7 +208,7 @@ function stopItem(routeId, stop, prog, favs){
   meta.appendChild(makeEl('div','title', (stop.order || '') + '. ' + (stop.name || 'Parada')));
   meta.appendChild(makeEl('div','sub', stop.tapa ? ('Tapa: ' + stop.tapa) : (stop.address || '')));
 
-  // Valoración (5 estrellas, sin etiqueta)
+  // Valoración (5 estrellas)
   const ratingVal = Number((prog.stopRatings && prog.stopRatings[stop.id]) || 0);
   const stars = makeEl('div','stars stars--inline','');
   for(let i=1;i<=5;i++){
@@ -191,33 +235,69 @@ function stopItem(routeId, stop, prog, favs){
   }
   meta.appendChild(stars);
 
-  const right = makeEl('div','right','');
+  const right = makeEl('div','stop-actions','');
 
-  // Toggle hecha/pendiente (sin etiqueta textual)
-  const toggleBtn = makeEl('button','fav-btn stop-toggle', done ? '✓' : '○');
+  const iconRow = makeEl('div','stop-actions__icons','');
+  const btnRow = makeEl('div','stop-actions__btns','');
+
+  function setActiveRouteId(){
+    try{ localStorage.setItem('rt_active_route_id', routeId); }catch(_e){}
+  }
+
+  function maybeFinishRoute(){
+    try{
+      const total = Array.isArray(allStops) ? allStops.length : 0;
+      const done = Array.isArray(prog.completedStopIds) ? prog.completedStopIds.length : 0;
+      const skipped = Array.isArray(prog.skippedStopIds) ? prog.skippedStopIds.length : 0;
+      const processed = done + skipped;
+      if(total && prog.startedAt && !prog.finishedAt && processed >= total){
+        prog.finishedAt = Date.now();
+        saveProgress(routeId, prog);
+        const active = localStorage.getItem('rt_active_route_id');
+        if(active === routeId) localStorage.removeItem('rt_active_route_id');
+        if(window.RT_TOAST) window.RT_TOAST('¡Ruta completada!');
+      }
+    }catch(_e){}
+  }
+
+  // Toggle hecha/pendiente
+  const toggleBtn = makeEl('button','fav-btn stop-toggle', isDone ? '✓' : '○');
   toggleBtn.type = 'button';
-  toggleBtn.setAttribute('aria-label', done ? 'Marcar como pendiente' : 'Marcar como hecha');
-  toggleBtn.setAttribute('aria-pressed', String(done));
+  toggleBtn.setAttribute('aria-label', isDone ? 'Marcar como pendiente' : 'Marcar como hecha');
+  toggleBtn.setAttribute('aria-pressed', String(isDone));
   toggleBtn.addEventListener('click', (e)=>{
     e.preventDefault();
     e.stopPropagation();
-    const isDone = prog.completedStopIds.includes(stop.id);
-    if(isDone) prog.completedStopIds = prog.completedStopIds.filter(x => x !== stop.id);
+
+    // Si estaba saltada y la marco, la saco de saltadas
+    prog.skippedStopIds = Array.isArray(prog.skippedStopIds) ? prog.skippedStopIds : [];
+    const wasSkipped = prog.skippedStopIds.includes(stop.id);
+    if(wasSkipped){
+      prog.skippedStopIds = prog.skippedStopIds.filter(x => x !== stop.id);
+    }
+
+    prog.completedStopIds = Array.isArray(prog.completedStopIds) ? prog.completedStopIds : [];
+    const wasDone = prog.completedStopIds.includes(stop.id);
+    if(wasDone) prog.completedStopIds = prog.completedStopIds.filter(x => x !== stop.id);
     else prog.completedStopIds.push(stop.id);
 
     saveProgress(routeId, prog);
+    setActiveRouteId();
 
-    const nowDone = !isDone;
+    const nowDone = !wasDone;
     item.classList.toggle('is-done', nowDone);
+    item.classList.toggle('is-skipped', false);
     toggleBtn.textContent = nowDone ? '✓' : '○';
     toggleBtn.setAttribute('aria-pressed', String(nowDone));
     toggleBtn.setAttribute('aria-label', nowDone ? 'Marcar como pendiente' : 'Marcar como hecha');
-    updateProgressFromDOM(prog.completedStopIds.length);
-    window.dispatchEvent(new CustomEvent('rt:stopStatus', { detail: { stopId: stop.id, done: nowDone } }));
 
+    updateProgressFromDOM(prog);
+    maybeFinishRoute();
+
+    window.dispatchEvent(new CustomEvent('rt:stopStatus', { detail: { stopId: stop.id, done: nowDone, skipped: false } }));
     if(window.RT_TOAST) window.RT_TOAST(nowDone ? 'Parada marcada como hecha' : 'Parada marcada como pendiente');
   });
-  right.appendChild(toggleBtn);
+  iconRow.appendChild(toggleBtn);
 
   // Favorito
   const isFav = !!(favs && favs[stop.id]);
@@ -238,12 +318,84 @@ function stopItem(routeId, stop, prog, favs){
     favBtn.setAttribute('aria-label', now ? 'Quitar de favoritos' : 'Marcar como favorito');
     if(window.RT_TOAST) window.RT_TOAST(now ? 'Añadido a favoritos' : 'Quitado de favoritos');
   });
-  right.appendChild(favBtn);
+  iconRow.appendChild(favBtn);
+
+  // Ir (navegar a esa parada)
+  const goBtn = makeEl('button','btn btn-ghost btn-sm','');
+  goBtn.type = 'button';
+  goBtn.appendChild(makeEl('span','', 'Ir'));
+  goBtn.appendChild(makeEl('span','', '🧭'));
+  goBtn.setAttribute('aria-label','Navegar a esta parada');
+  goBtn.addEventListener('click',(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    setActiveRouteId();
+    window.dispatchEvent(new CustomEvent('rt:goToStop', { detail: { stopId: stop.id } }));
+    const mapCard = document.querySelector('.route-map-card');
+    if(mapCard) mapCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  // Saltar
+  const skipBtn = makeEl('button','btn btn-ghost btn-sm','');
+  skipBtn.type = 'button';
+  skipBtn.appendChild(makeEl('span','', 'Saltar'));
+  skipBtn.appendChild(makeEl('span','', '⏭️'));
+  skipBtn.setAttribute('aria-label','Saltar esta parada');
+  skipBtn.addEventListener('click',(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+
+    prog.completedStopIds = Array.isArray(prog.completedStopIds) ? prog.completedStopIds : [];
+    prog.skippedStopIds = Array.isArray(prog.skippedStopIds) ? prog.skippedStopIds : [];
+
+    const wasSkipped = prog.skippedStopIds.includes(stop.id);
+    if(wasSkipped){
+      prog.skippedStopIds = prog.skippedStopIds.filter(x => x !== stop.id);
+    }else{
+      // si estaba hecha, la desmarca como hecha
+      prog.completedStopIds = prog.completedStopIds.filter(x => x !== stop.id);
+      prog.skippedStopIds.push(stop.id);
+    }
+
+    saveProgress(routeId, prog);
+    setActiveRouteId();
+
+    const nowSkipped = !wasSkipped;
+    item.classList.toggle('is-skipped', nowSkipped);
+    item.classList.toggle('is-done', false);
+
+    updateProgressFromDOM(prog);
+    maybeFinishRoute();
+
+    window.dispatchEvent(new CustomEvent('rt:stopStatus', { detail: { stopId: stop.id, done: false, skipped: nowSkipped } }));
+
+    if(window.RT_TOAST) window.RT_TOAST(nowSkipped ? 'Parada saltada' : 'Parada restaurada');
+
+    // Si se ha saltado (no si se ha restaurado), ir a la siguiente parada
+    if(nowSkipped){
+      const target = nextStop(routeId, Array.isArray(allStops) ? allStops : [], prog);
+      if(target){
+        window.dispatchEvent(new CustomEvent('rt:goToStop', { detail: { stopId: target.id } }));
+        const elStop = document.querySelector('[data-stop-id="' + CSS.escape(target.id) + '"]');
+        if(elStop){
+          elStop.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          elStop.classList.add('pulse');
+          setTimeout(()=>{ try{ elStop.classList.remove('pulse'); }catch(_e){} }, 900);
+        }
+      }
+    }
+  });
 
   // Ver detalle
-  const view = makeEl('a','btn btn-ghost','Ver');
+  const view = makeEl('a','btn btn-ghost btn-sm','Ver');
   view.href = '#/parada?r=' + encodeURIComponent(routeId) + '&s=' + encodeURIComponent(stop.id);
-  right.appendChild(view);
+
+  btnRow.appendChild(goBtn);
+  btnRow.appendChild(skipBtn);
+  btnRow.appendChild(view);
+
+  right.appendChild(iconRow);
+  right.appendChild(btnRow);
 
   item.appendChild(img);
   item.appendChild(meta);
@@ -337,6 +489,7 @@ async function initRouteMap(el, data, routeId){
   // ===== Marcadores: inicio/fin + paradas (SIN chincheta) =====
   const prog0 = getProgress(routeId);
   const doneSet0 = new Set((prog0 && Array.isArray(prog0.completedStopIds)) ? prog0.completedStopIds : []);
+  const skipSet0 = new Set((prog0 && Array.isArray(prog0.skippedStopIds)) ? prog0.skippedStopIds : []);
 
   if(data && data.meta && data.meta.start){
     const p = { lat: data.meta.start.lat, lng: data.meta.start.lng };
@@ -352,7 +505,8 @@ async function initRouteMap(el, data, routeId){
   stops.forEach((s)=>{
     const p = { lat: s.lat, lng: s.lng };
     const isDone0 = doneSet0.has(s.id);
-    const mk = new window.google.maps.Marker({ position: p, map, icon: emojiIcon(isDone0 ? '✅' : '📍', 32) });
+    const isSkip0 = skipSet0.has(s.id);
+    const mk = new window.google.maps.Marker({ position: p, map, icon: emojiIcon(isDone0 ? '✅' : (isSkip0 ? '⏭️' : '📍'), 32) });
     s.__marker = mk;
     mk.addListener('click', ()=> openStopPopup(s));
     bounds.extend(p);
@@ -437,8 +591,22 @@ async function initRouteMap(el, data, routeId){
   }
 
   function routeUserToStop(stop){
-    if(!stop || !lastUserPos) return;
+    if(!stop) return;
     pendingStop = stop;
+
+    // Siempre enfocar la parada y mostrar popup
+    try{
+      map.panTo({ lat: stop.lat, lng: stop.lng });
+      const z = map.getZoom ? map.getZoom() : null;
+      if(typeof z === 'number' && z < 16) map.setZoom(16);
+    }catch(_e){}
+    openStopPopup(stop);
+
+    // Si no tenemos posición del usuario todavía, no podemos trazar la ruta azul
+    if(!lastUserPos){
+      if(window.RT_TOAST) window.RT_TOAST('Activa la ubicación para navegar.');
+      return;
+    }
 
     dirSvc.route({
       origin: lastUserPos,
@@ -447,7 +615,6 @@ async function initRouteMap(el, data, routeId){
     }, (result, status)=>{
       if(status === 'OK' && result){
         userRouteRenderer.setDirections(result);
-        openStopPopup(stop);
       }
     });
   }
@@ -503,7 +670,7 @@ async function initRouteMap(el, data, routeId){
       if(!d || !d.stopId) return;
       const stop = stops.find(s => s.id === d.stopId);
       if(stop && stop.__marker){
-        stop.__marker.setIcon(emojiIcon(d.done ? '✅' : '📍', 32));
+        stop.__marker.setIcon(emojiIcon(d.skipped ? '⏭️' : (d.done ? '✅' : '📍'), 32));
       }
     }catch(_e){}
   }
@@ -537,6 +704,7 @@ export function renderActiveRoute(root, route, data){
   }
 
   const prog = getProgress(route.id);
+  try{ if(prog && prog.startedAt && !prog.finishedAt) localStorage.setItem('rt_active_route_id', route.id); }catch(_e){}
   document.documentElement.dataset.rtTotalStops = String((data && Array.isArray(data.stops)) ? data.stops.length : 0);
   const favs = getFavorites(route.id);
 
@@ -572,6 +740,7 @@ export function renderActiveRoute(root, route, data){
     if(!prog.startedAt){
       prog.startedAt = Date.now();
       saveProgress(route.id, prog);
+      try{ localStorage.setItem('rt_active_route_id', route.id); }catch(_e){}
       if(window.RT_TOAST) window.RT_TOAST('Ruta iniciada.');
     }
     btnStart.disabled = true;
@@ -644,7 +813,7 @@ export function renderActiveRoute(root, route, data){
 
   const list = makeEl('div','list','');
   (data.stops || []).forEach(s => {
-    list.appendChild(stopItem(route.id, s, prog, favs));
+    list.appendChild(stopItem(route.id, s, prog, favs, data.stops || []));
   });
   listCard.appendChild(list);
 
@@ -711,6 +880,7 @@ export function renderStopDetails(root, route, data, stopId){
   }
 
   const prog = getProgress(route.id);
+  try{ if(prog && prog.startedAt && !prog.finishedAt) localStorage.setItem('rt_active_route_id', route.id); }catch(_e){}
   const favs = getFavorites(route.id);
 
   const stops = (data.stops || []);
@@ -884,6 +1054,7 @@ export function renderMapView(root, route, data){
   btnNext.addEventListener('click', (e)=>{
     e.preventDefault();
     const prog = getProgress(route.id);
+  try{ if(prog && prog.startedAt && !prog.finishedAt) localStorage.setItem('rt_active_route_id', route.id); }catch(_e){}
   document.documentElement.dataset.rtTotalStops = String((data && Array.isArray(data.stops)) ? data.stops.length : 0);
   const favs = getFavorites(route.id);
     const stops = data.stops || [];
@@ -901,6 +1072,7 @@ async function initFullMap(route, data, infoLeft, infoRight, btnCenter){
 
   const stops = data.stops || [];
   const prog = getProgress(route.id);
+  try{ if(prog && prog.startedAt && !prog.finishedAt) localStorage.setItem('rt_active_route_id', route.id); }catch(_e){}
   document.documentElement.dataset.rtTotalStops = String((data && Array.isArray(data.stops)) ? data.stops.length : 0);
   const favs = getFavorites(route.id);
 

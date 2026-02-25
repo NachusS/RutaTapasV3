@@ -205,6 +205,14 @@ body.theme-dark .btn-danger{ color:#ffd4d4; }
   font-size: 1.6rem;
 }
 
+
+.btn-sm{
+  padding: .9rem 1.1rem;
+  border-radius: 1.6rem;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
 /* Campos */
 .field{ display:flex; flex-direction:column; gap:.6rem; margin-bottom: 1.4rem; }
 .label{ font-size: 1.2rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--metal-light); margin-left: .6rem; }
@@ -253,9 +261,15 @@ body.theme-dark .btn-danger{ color:#ffd4d4; }
 }
 .item:active{ transform: scale(.99); }
 .item .meta{ flex:1; min-width:0; }
-.item .title{ font-weight: 900; font-size: 1.5rem; color: var(--metal-dark); margin:0 0 .2rem; }
+.item .title{ font-weight: 900; font-size: 1.5rem; color: var(--metal-dark); margin:0 0 .2rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .item .sub{ font-size: 1.2rem; color: var(--metal-light); margin:0; font-family: var(--font-body); }
 .item .right{ display:flex; gap:.8rem; align-items:center; }
+
+/* Acciones de parada (dos filas: iconos + botones) */
+.stop-actions{ display:flex; flex-direction:column; gap:.6rem; align-items:flex-end; }
+.stop-actions__icons{ display:flex; gap:.8rem; align-items:center; }
+.stop-actions__btns{ display:flex; gap:.6rem; flex-wrap:wrap; justify-content:flex-end; }
+
 
 /* Botón pequeño (icono) */
 .fav-btn{
@@ -841,9 +855,28 @@ body.theme-dark .route-hud__avatar{ border-color: rgba(17,24,38,.92); }
 .route-panel__list{ margin-top: 1.2rem; overflow:auto; padding-bottom: 1.2rem; }
 
 /* Estado de paradas */
-.item.is-done{ opacity: .9; }
-.item.is-done .title{ text-decoration: line-through; opacity: .85; }
-.item.is-skipped{ opacity: .6; filter: grayscale(70%); }
+.item.is-done{
+  opacity: 1;
+  background: rgba(68,189,50,.10);
+  border: 1px solid rgba(68,189,50,.28);
+}
+body.theme-dark .item.is-done{
+  background: rgba(68,189,50,.14);
+  border: 1px solid rgba(68,189,50,.22);
+}
+.item.is-done .title{ text-decoration: line-through; opacity: .88; }
+
+.item.is-skipped{
+  opacity: .92;
+  background: rgba(251,197,49,.10);
+  border: 1px solid rgba(251,197,49,.28);
+  filter: grayscale(55%);
+}
+body.theme-dark .item.is-skipped{
+  background: rgba(251,197,49,.12);
+  border: 1px solid rgba(251,197,49,.22);
+}
+
 
 /* Detalle de parada */
 .stop-hero{
