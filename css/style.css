@@ -213,6 +213,27 @@ body.theme-dark .btn-danger{ color:#ffd4d4; }
   line-height: 1;
 }
 
+/* Botones con icono (pantalla detalle parada) */
+.btn-ico{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  line-height: 1;
+}
+.btn-ico--xl{ font-size: 2.2rem; }
+
+.btn-ico-img{ display:block; width: 1.8rem; height: 1.8rem; object-fit: contain; }
+.btn-ico-img--xl{ width: 2.2rem; height: 2.2rem; }
+
+.stop-detail-actions .btn-action{
+  gap: .9rem;
+  padding: 1.2rem 1.4rem;
+}
+
+.stop-detail-actions .btn-web:disabled{
+  filter: grayscale(1);
+}
+
 /* Campos */
 .field{ display:flex; flex-direction:column; gap:.6rem; margin-bottom: 1.4rem; }
 .label{ font-size: 1.2rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--metal-light); margin-left: .6rem; }

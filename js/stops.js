@@ -986,6 +986,17 @@ export function renderStopDetails(root, route, data, stopId){
   const isFav = !!(favs && favs[stop.id]);
   const currentRating = Number((prog.stopRatings && prog.stopRatings[stop.id]) || 0);
 
+  function isValidHttpUrl(value){
+    const raw = String(value || '').trim();
+    if(!raw) return false;
+    try{
+      const u = new URL(raw);
+      return (u.protocol === 'http:' || u.protocol === 'https:');
+    }catch(_e){
+      return false;
+    }
+  }
+
   const card = makeEl('section','card pad','');
 
   const topRow = makeEl('div','row spread','');
@@ -1009,10 +1020,17 @@ export function renderStopDetails(root, route, data, stopId){
 
   const notes = makeEl('p','p', stop.notes || '');
 
-  // Acciones: hecho + favorito
-  const actions = makeEl('div','row','');
-  const doneBtn = makeEl('button','btn', isDone ? '✓ Hecha' : '○ Marcar hecha');
+  // Acciones: hecho + favorito + web
+  const actions = makeEl('div','row stop-detail-actions','');
+
+  const doneBtn = makeEl('button','btn btn-action','');
   doneBtn.type = 'button';
+
+  const doneIcon = makeEl('span','btn-ico btn-ico--xl', isDone ? '✓' : '○');
+  const doneText = makeEl('span','btn-label', isDone ? 'Hecha' : 'Marcar hecha');
+  doneBtn.appendChild(doneIcon);
+  doneBtn.appendChild(doneText);
+
   doneBtn.addEventListener('click', (e)=>{
     e.preventDefault();
     const nowDone = !(prog.completedStopIds || []).includes(stop.id);
@@ -1025,8 +1043,14 @@ export function renderStopDetails(root, route, data, stopId){
     renderStopDetails(root, route, data, stop.id);
   });
 
-  const favBtn = makeEl('button','btn', isFav ? '♥ Favorito' : '♡ Añadir a favoritos');
+  const favBtn = makeEl('button','btn btn-action','');
   favBtn.type = 'button';
+
+  const favIcon = makeEl('span','btn-ico btn-ico--xl', isFav ? '♥' : '♡');
+  const favText = makeEl('span','btn-label', isFav ? 'Favorito' : 'Añadir favoritos');
+  favBtn.appendChild(favIcon);
+  favBtn.appendChild(favText);
+
   favBtn.addEventListener('click', (e)=>{
     e.preventDefault();
     const now = !(favs && favs[stop.id]);
@@ -1038,8 +1062,39 @@ export function renderStopDetails(root, route, data, stopId){
     renderStopDetails(root, route, data, stop.id);
   });
 
+  // Web (junto a favoritos)
+  const webBtn = makeEl('button','btn btn-action btn-web','');
+  webBtn.type = 'button';
+  webBtn.setAttribute('aria-label','Abrir web del local');
+
+  const webIconImg = document.createElement('img');
+  webIconImg.className = 'btn-ico-img btn-ico-img--xl';
+  webIconImg.alt = '';
+  webIconImg.src = 'assets/acceso-web.png';
+
+  const webText = makeEl('span','btn-label','Web');
+  webBtn.appendChild(webIconImg);
+  webBtn.appendChild(webText);
+
+  const webUrl = (typeof stop.web === 'string') ? stop.web.trim() : '';
+  const hasValidWeb = isValidHttpUrl(webUrl);
+  if(!hasValidWeb){
+    webBtn.disabled = true;
+    webBtn.setAttribute('aria-disabled','true');
+  }
+  webBtn.addEventListener('click', (e)=>{
+    e.preventDefault();
+    if(!hasValidWeb) return;
+    try{
+      window.open(webUrl, '_blank', 'noopener,noreferrer');
+    }catch(_e){
+      // sin alert: no hacemos nada si el navegador bloquea el popup
+    }
+  });
+
   actions.appendChild(doneBtn);
   actions.appendChild(favBtn);
+  actions.appendChild(webBtn);
 
   // Rating: 5 estrellas
   const ratingWrap = makeEl('div','rating-wrap','');
@@ -1074,17 +1129,6 @@ export function renderStopDetails(root, route, data, stopId){
   ratingWrap.appendChild(stars);
   ratingWrap.appendChild(hint);
 
-  // Link web si existe
-  let webRow = null;
-  if(stop.web){
-    webRow = makeEl('div','small','');
-    const a = document.createElement('a');
-    a.href = stop.web;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.textContent = 'Abrir web';
-    webRow.appendChild(a);
-  }
 
   card.appendChild(topRow);
   card.appendChild(h1);
@@ -1095,7 +1139,7 @@ export function renderStopDetails(root, route, data, stopId){
   card.appendChild(actions);
   card.appendChild(makeEl('hr','hr',''));
   card.appendChild(ratingWrap);
-  if(webRow){ card.appendChild(makeEl('hr','hr','')); card.appendChild(webRow); }
+  // El acceso a la web se gestiona con el botón "Web" junto a favoritos.
 
   container.appendChild(card);
   root.appendChild(container);
