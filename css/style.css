@@ -312,10 +312,25 @@ body.theme-dark .btn-danger{ color:#ffd4d4; }
   .stop-card .stop-actions{ width: auto; }
 }
 
-/* Acciones de parada (dos filas: iconos + botones) */
+/* Acciones de parada (por defecto: 2 filas). En móvil las ponemos en 1 sola línea */
 .stop-actions{ display:flex; flex-direction:column; gap:.6rem; align-items:flex-end; }
 .stop-actions__icons{ display:flex; gap:.8rem; align-items:center; }
 .stop-actions__btns{ display:flex; gap:.6rem; flex-wrap:wrap; justify-content:flex-end; }
+
+/* Móvil: Ir/Saltar/Ver en la misma línea que Hecho/Favorito */
+@media (max-width: 51.999rem){
+  .stop-card .stop-actions{
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .8rem;
+    flex-wrap: wrap;
+  }
+  /* Aplanamos los contenedores para que TODOS los botones se alineen en una sola fila */
+  .stop-card .stop-actions__icons,
+  .stop-card .stop-actions__btns{ display: contents; }
+  /* (Los botones internos ya tienen su propio layout: .btn / .fav-btn) */
+}
 
 
 /* Botón pequeño (icono) */
@@ -329,6 +344,9 @@ body.theme-dark .btn-danger{ color:#ffd4d4; }
   display:grid;
   place-items:center;
   cursor:pointer;
+  /* Iconos grandes (✓ / ♥) sin cambiar el tamaño del botón */
+  font-size: 2.8rem;
+  line-height: 1;
 }
 .fav-btn:active{ transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,.06); }
 .fav-btn[aria-pressed="true"]{ background: rgba(0,168,255,.10); border-color: rgba(0,168,255,.35); }
