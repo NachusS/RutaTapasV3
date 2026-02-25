@@ -192,7 +192,9 @@ function stopItem(routeId, stop, prog, favs, allStops){
   const isSkipped = prog.skippedStopIds.includes(stop.id);
   const isDone = !isSkipped && prog.completedStopIds.includes(stop.id);
 
-  const item = makeEl('div','item' + (isDone ? ' is-done' : '') + (isSkipped ? ' is-skipped' : ''),'');
+  // Nota: usamos una clase específica (stop-card) para poder ajustar el layout
+  // sin afectar a otros listados genéricos que también usan .item.
+  const item = makeEl('div','item stop-card' + (isDone ? ' is-done' : '') + (isSkipped ? ' is-skipped' : ''),'');
   item.dataset.stopId = stop.id;
 
   const img = document.createElement('img');
@@ -205,8 +207,16 @@ function stopItem(routeId, stop, prog, favs, allStops){
   img.style.border = '1px solid rgba(255,255,255,.08)';
 
   const meta = makeEl('div','meta','');
-  meta.appendChild(makeEl('div','title', (stop.order || '') + '. ' + (stop.name || 'Parada')));
-  meta.appendChild(makeEl('div','sub', stop.tapa ? ('Tapa: ' + stop.tapa) : (stop.address || '')));
+
+  // Nombre de la parada (siempre visible, una sola línea)
+  const nameTxt = (stop.order ? (stop.order + '. ') : '') + (stop.name || 'Parada');
+  const nameEl = makeEl('h3','stop-name', nameTxt);
+  meta.appendChild(nameEl);
+
+  // Subtítulo / tapa (puede ocupar varias líneas)
+  const subTxt = stop.tapa ? ('Tapa: ' + stop.tapa) : (stop.address || '');
+  const subEl = makeEl('p','sub stop-sub', subTxt);
+  meta.appendChild(subEl);
 
   // Valoración (5 estrellas)
   const ratingVal = Number((prog.stopRatings && prog.stopRatings[stop.id]) || 0);
