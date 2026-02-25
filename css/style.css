@@ -1290,6 +1290,7 @@ body.is-map-max .route-stack > :not(.route-map-card){ display:none !important; }
 
 /* Botones compactos en el header del mapa maximizado */
 .route-map-card.is-max .btn-map-next,
+.route-map-card.is-max .btn-map-done,
 .route-map-card.is-max .btn-map-skip{
   padding: 1.0rem 1.2rem;
   border-radius: 1.6rem;

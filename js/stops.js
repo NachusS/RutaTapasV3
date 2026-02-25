@@ -824,6 +824,64 @@ export function renderActiveRoute(root, route, data){
     window.dispatchEvent(new CustomEvent('rt:goToStop', { detail: { stopId: target.id } }));
   });
 
+  // Marcar como hecha (solo en mapa maximizado): marca la parada pendiente y salta a la siguiente
+  const btnDoneMap = makeEl('button','btn btn-yellow btn-map-done','');
+  btnDoneMap.type = 'button';
+  btnDoneMap.appendChild(makeEl('span','', 'Hecho'));
+  btnDoneMap.appendChild(makeEl('span','', '✓'));
+  btnDoneMap.addEventListener('click', (e)=>{
+    e.preventDefault();
+    const target = getNextStop(route.id, data, prog);
+    if(!target){
+      if(window.RT_TOAST) window.RT_TOAST('No hay más paradas pendientes.');
+      return;
+    }
+
+    prog.completedStopIds = Array.isArray(prog.completedStopIds) ? prog.completedStopIds : [];
+    prog.skippedStopIds = Array.isArray(prog.skippedStopIds) ? prog.skippedStopIds : [];
+
+    // Si estaba saltada, la saco de saltadas
+    prog.skippedStopIds = prog.skippedStopIds.filter(x => x !== target.id);
+    if(!prog.completedStopIds.includes(target.id)) prog.completedStopIds.push(target.id);
+
+    // Completar ruta si ya no quedan paradas
+    const total = (data && Array.isArray(data.stops)) ? data.stops.length : 0;
+    const processed = prog.completedStopIds.length + prog.skippedStopIds.length;
+    if(total > 0 && processed >= total && !prog.finishedAt){
+      prog.finishedAt = Date.now();
+      try{
+        const active = localStorage.getItem('rt_active_route_id');
+        if(active === route.id) localStorage.removeItem('rt_active_route_id');
+      }catch(_e){}
+    }
+
+    saveProgress(route.id, prog);
+    updateProgressFromDOM(prog);
+
+    // Actualizar estado visual de la ficha
+    const elStop = document.querySelector('[data-stop-id="' + CSS.escape(target.id) + '"]');
+    if(elStop){
+      elStop.classList.add('is-done');
+      elStop.classList.remove('is-skipped');
+      const toggle = elStop.querySelector('.stop-toggle');
+      if(toggle){
+        toggle.textContent = '✓';
+        toggle.setAttribute('aria-pressed', 'true');
+        toggle.setAttribute('aria-label', 'Marcar como pendiente');
+      }
+    }
+
+    window.dispatchEvent(new CustomEvent('rt:stopStatus', { detail: { stopId: target.id, done: true, skipped: false } }));
+
+    // Ir a la siguiente parada pendiente y refrescar el popup
+    const nextTarget = getNextStop(route.id, data, prog);
+    if(nextTarget){
+      window.dispatchEvent(new CustomEvent('rt:goToStop', { detail: { stopId: nextTarget.id } }));
+    }else{
+      if(window.RT_TOAST) window.RT_TOAST('¡Ruta completada!');
+    }
+  });
+
   const btnSkipMap = makeEl('button','btn btn-ghost btn-map-skip','Saltar');
   btnSkipMap.type = 'button';
   btnSkipMap.addEventListener('click', (e)=>{
@@ -866,6 +924,7 @@ export function renderActiveRoute(root, route, data){
   });
 
   maxActions.appendChild(btnNextMap);
+  maxActions.appendChild(btnDoneMap);
   maxActions.appendChild(btnSkipMap);
   titleActions.appendChild(maxActions);
   const btnMax = makeEl('button','btn btn-ghost','Maximizar');
