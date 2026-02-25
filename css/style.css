@@ -280,7 +280,10 @@ body.theme-dark .btn-danger{ color:#ffd4d4; }
   /* un poco más de aire vertical */
   padding-top: 1.4rem;
   padding-bottom: 1.4rem;
+  cursor: pointer;
 }
+.stop-card:focus-visible{ outline: 0.3rem solid rgba(0,168,255,.55); outline-offset: 0.3rem; }
+
 .stop-card > img{ grid-area: img; }
 .stop-card .meta{ grid-area: meta; }
 .stop-card .stop-actions{

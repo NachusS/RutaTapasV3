@@ -396,13 +396,28 @@ function stopItem(routeId, stop, prog, favs, allStops){
     }
   });
 
-  // Ver detalle
-  const view = makeEl('a','btn btn-ghost btn-sm','Ver');
-  view.href = '#/parada?r=' + encodeURIComponent(routeId) + '&s=' + encodeURIComponent(stop.id);
+  // Al pulsar en la ficha (salvo botones), abrir detalle
+  function openDetails(){
+    setActiveRouteId();
+    window.location.hash = '#/parada?r=' + encodeURIComponent(routeId) + '&s=' + encodeURIComponent(stop.id);
+  }
+  item.setAttribute('role','link');
+  item.tabIndex = 0;
+  item.setAttribute('aria-label','Ver detalle de ' + (stop.name || 'parada'));
+  item.addEventListener('click', (e)=>{
+    // Los botones internos hacen stopPropagation
+    e.preventDefault();
+    openDetails();
+  });
+  item.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' || e.key === ' '){
+      e.preventDefault();
+      openDetails();
+    }
+  });
 
   btnRow.appendChild(goBtn);
   btnRow.appendChild(skipBtn);
-  btnRow.appendChild(view);
 
   right.appendChild(iconRow);
   right.appendChild(btnRow);
