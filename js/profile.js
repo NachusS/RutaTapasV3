@@ -329,7 +329,7 @@ export function renderWelcome(root){
 }
 
 
-export function renderProfile(root)export function renderProfile(root){
+export function renderProfile(root){
   root.replaceChildren();
   const container = makeEl('div','container','');
   const prof = ensureProfile(true);
