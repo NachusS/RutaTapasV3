@@ -628,8 +628,8 @@ async function initRouteMap(el, data, routeId){
     openStopPopup(stop);
 
     // Si no tenemos posición del usuario todavía, no podemos trazar la ruta azul
+    // (no mostramos recordatorios; simplemente centramos y abrimos el popup)
     if(!lastUserPos){
-      if(window.RT_TOAST) window.RT_TOAST('Activa la ubicación para navegar.');
       return;
     }
 
@@ -810,7 +810,64 @@ export function renderActiveRoute(root, route, data){
   const mapCard = makeEl('section','card pad route-map-card','');
   const mapTitleRow = makeEl('div','row spread','');
   mapTitleRow.appendChild(makeEl('h2','h2','Mapa y seguimiento'));
-  mapTitleRow.appendChild(makeEl('div','small','Activa la ubicación para ver tu posición.'));
+
+  // Acciones rápidas (solo visibles al maximizar el mapa)
+  const titleActions = makeEl('div','map-title-actions','');
+  const maxActions = makeEl('div','map-max-actions','');
+
+  const btnNextMap = makeEl('button','btn btn-primary btn-map-next','Siguiente');
+  btnNextMap.type = 'button';
+  btnNextMap.addEventListener('click', (e)=>{
+    e.preventDefault();
+    const target = getNextStop(route.id, data, prog);
+    if(!target) return;
+    window.dispatchEvent(new CustomEvent('rt:goToStop', { detail: { stopId: target.id } }));
+  });
+
+  const btnSkipMap = makeEl('button','btn btn-ghost btn-map-skip','Saltar');
+  btnSkipMap.type = 'button';
+  btnSkipMap.addEventListener('click', (e)=>{
+    e.preventDefault();
+    const target = getNextStop(route.id, data, prog);
+    if(!target) return;
+
+    prog.completedStopIds = Array.isArray(prog.completedStopIds) ? prog.completedStopIds : [];
+    prog.skippedStopIds = Array.isArray(prog.skippedStopIds) ? prog.skippedStopIds : [];
+
+    if(!prog.skippedStopIds.includes(target.id)){
+      prog.completedStopIds = prog.completedStopIds.filter(x => x !== target.id);
+      prog.skippedStopIds.push(target.id);
+    }
+
+    // Completar ruta si ya no quedan paradas
+    const total = (data && Array.isArray(data.stops)) ? data.stops.length : 0;
+    const processed = prog.completedStopIds.length + prog.skippedStopIds.length;
+    if(total > 0 && processed >= total && !prog.finishedAt){
+      prog.finishedAt = Date.now();
+    }
+
+    saveProgress(route.id, prog);
+    updateProgressFromDOM(prog);
+
+    // Actualizar estado visual de la ficha
+    const elStop = document.querySelector('[data-stop-id="' + CSS.escape(target.id) + '"]');
+    if(elStop){
+      elStop.classList.add('is-skipped');
+      elStop.classList.remove('is-done');
+    }
+
+    window.dispatchEvent(new CustomEvent('rt:stopStatus', { detail: { stopId: target.id, done: false, skipped: true } }));
+
+    // Ir a la siguiente parada pendiente y refrescar el popup
+    const nextTarget = getNextStop(route.id, data, prog);
+    if(nextTarget){
+      window.dispatchEvent(new CustomEvent('rt:goToStop', { detail: { stopId: nextTarget.id } }));
+    }
+  });
+
+  maxActions.appendChild(btnNextMap);
+  maxActions.appendChild(btnSkipMap);
+  titleActions.appendChild(maxActions);
   const btnMax = makeEl('button','btn btn-ghost','Maximizar');
   btnMax.type = 'button';
   btnMax.addEventListener('click',(e)=>{
@@ -820,10 +877,15 @@ export function renderActiveRoute(root, route, data){
     btnMax.textContent = mapCard.classList.contains('is-max') ? 'Cerrar' : 'Maximizar';
     setTimeout(()=>{
       const m = mapBox.__rt_map;
-      if(m){ window.google.maps.event.trigger(m,'resize'); }
+      if(m){
+        const c = m.getCenter ? m.getCenter() : null;
+        window.google.maps.event.trigger(m,'resize');
+        if(c && m.setCenter) m.setCenter(c);
+      }
     }, 220);
   });
-  mapTitleRow.appendChild(btnMax);
+  titleActions.appendChild(btnMax);
+  mapTitleRow.appendChild(titleActions);
   mapCard.appendChild(mapTitleRow);
 
   const mapBox = makeEl('div','mapbox','');

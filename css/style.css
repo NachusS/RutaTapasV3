@@ -1235,5 +1235,44 @@ body.theme-dark .item.is-skipped{
 /* Map box genérico */
 .mapbox{ width:100%; height: 44rem; border-radius: 3.2rem; overflow:hidden; border: var(--border); background:#e9edf2; box-shadow: var(--shadow-soft); }
 
+/* ===== Mapa a pantalla completa ===== */
+body.is-map-max{ overflow: hidden; }
+
+/* Ocultar el resto del contenido cuando el mapa está maximizado */
+body.is-map-max .route-stack > :not(.route-map-card){ display:none !important; }
+
+.route-map-card{ position: relative; }
+
+.route-map-card.is-max{
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  margin: 0;
+  border-radius: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  padding: 1.6rem;
+}
+
+.route-map-card.is-max .mapbox{
+  flex: 1;
+  height: auto;
+  border-radius: 2.4rem;
+}
+
+.map-title-actions{ display:flex; align-items:center; gap: 1.0rem; }
+.map-max-actions{ display:none; align-items:center; gap: .8rem; }
+.route-map-card.is-max .map-max-actions{ display:flex; }
+
+/* Botones compactos en el header del mapa maximizado */
+.route-map-card.is-max .btn-map-next,
+.route-map-card.is-max .btn-map-skip{
+  padding: 1.0rem 1.2rem;
+  border-radius: 1.6rem;
+}
+
 /* Animación pulse (scroll al siguiente) */
 .pulse{ outline: 3px solid rgba(0,168,255,.55); box-shadow: 0 0 0 .6rem rgba(0,168,255,.15); transition: box-shadow .2s ease; }
