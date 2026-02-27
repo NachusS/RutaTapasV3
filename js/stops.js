@@ -478,24 +478,27 @@ async function initRouteMap(el, data, routeId){
   function pinIcon(opts){
     const size = Number((opts && opts.size) || 38);
     const fill = String((opts && opts.fill) || '#EA4335');
-    const glyph = String((opts && opts.glyph) || '');
+    const glyph = (opts && opts.glyph != null) ? String(opts.glyph) : '';
     const glyphColor = String((opts && opts.glyphColor) || '#ffffff');
     const showCircle = !!(opts && opts.circle);
 
     // Dibujo en viewBox 48x48 para tener buena definición al escalar
     const fontSize = glyph.length === 1 ? 18 : 16;
     const yText = 21.5;
+
+    const circleSvg = showCircle
+      ? '<circle cx="24" cy="18" r="10" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.85)" stroke-width="2"/>'
+      : '';
+
+    const textSvg = glyph
+      ? ('<text x="24" y="' + yText + '" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,Arial" font-size="' + fontSize + '" font-weight="900" fill="' + glyphColor + '">' + glyph + '</text>')
+      : '';
+
     const svg = [
       '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">',
-      '<path d="M24 2C15.2 2 8 9.2 8 18c0 12 16 28 16 28s16-16 16-28C40 9.2 32.8 2 24 2z" fill="', fill, '" stroke="rgba(0,0,0,0.25)" stroke-width="2"/>',
-      (showCircle
-        ? '<circle cx="24" cy="18" r="10" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.85)" stroke-width="2"/>'
-        : ''),
-      (glyph
-        ? '<text x="24" y="', yText, '" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,Arial" font-size="', fontSize, '" font-weight="900" fill="', glyphColor, '">',
-          glyph,
-          '</text>'
-        : ''),
+      '<path d="M24 2C15.2 2 8 9.2 8 18c0 12 16 28 16 28s16-16 16-28C40 9.2 32.8 2 24 2z" fill="' + fill + '" stroke="rgba(0,0,0,0.25)" stroke-width="2"/>',
+      circleSvg,
+      textSvg,
       '</svg>'
     ].join('');
 
@@ -503,7 +506,7 @@ async function initRouteMap(el, data, routeId){
     return {
       url,
       scaledSize: new window.google.maps.Size(size, size),
-      anchor: new window.google.maps.Point(size/2, size),
+      anchor: new window.google.maps.Point(size/2, size)
     };
   }
 
