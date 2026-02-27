@@ -279,8 +279,11 @@ body.theme-dark .btn-danger{ color:#ffd4d4; }
   border: var(--border);
   border-radius: 2.2rem;
   box-shadow: 0 4px 0 rgba(0,0,0,.06);
+  text-decoration:none;
+  color: inherit;
 }
 .item:active{ transform: scale(.99); }
+.item:focus-visible{ outline: 0.3rem solid rgba(0,168,255,.55); outline-offset: 0.3rem; }
 .item .meta{ flex:1; min-width:0; }
 .item .title{ font-weight: 900; font-size: 1.5rem; color: var(--metal-dark); margin:0 0 .2rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .item .sub{ font-size: 1.2rem; color: var(--metal-light); margin:0; font-family: var(--font-body); }
@@ -858,6 +861,9 @@ body.theme-dark .route-hud__avatar{ border-color: rgba(17,24,38,.92); }
 body.theme-dark .profile-hero__tip{ background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.10); }
 .profile-hero__tip-ico{ font-size: 1.6rem; }
 
+/* Botón de edición dentro del héroe */
+.profile-hero__edit{ white-space: nowrap; }
+
 .profile-hero__bubble{ margin: 2.2rem auto 1.2rem; position: relative; width: 12.4rem; height: 12.4rem; }
 .profile-hero__avatar{
   width: 12.4rem;
@@ -963,6 +969,10 @@ body.theme-dark .profile-xpbar{ background: rgba(255,255,255,.08); border-color:
 }
 body.theme-dark .metric{ border-color: rgba(255,255,255,.10); box-shadow: 0 6px 0 rgba(0,0,0,.35); }
 .metric:active{ transform: translateY(2px); box-shadow: 0 4px 0 rgba(0,0,0,.05); }
+
+/* Métricas clicables (tarjetas enlace) */
+.metric-link{ text-decoration: none; color: inherit; }
+.metric-link:focus-visible{ outline: 0.3rem solid rgba(0,168,255,.55); outline-offset: 0.3rem; }
 
 .metric-ico{
   width: 5.4rem;

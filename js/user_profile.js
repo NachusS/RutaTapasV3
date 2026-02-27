@@ -61,8 +61,10 @@ function buildMiniProgress(current, target){
   return { current, target, pct };
 }
 
-function metricCard(label, value, icon){
-  const box = makeEl('div','metric','');
+function metricCard(label, value, icon, href){
+  const isLink = typeof href === 'string' && href.length;
+  const box = makeEl(isLink ? 'a' : 'div', 'metric' + (isLink ? ' metric-link' : ''), '');
+  if(isLink) box.href = href;
   const ico = makeEl('div','metric-ico', icon);
   const v = makeEl('div','metric-val', String(value));
   const l = makeEl('div','metric-lab', label);
@@ -96,13 +98,10 @@ export function renderUserProfile(root, routesIndex){
   root.replaceChildren();
 
   const container = makeEl('div','container','');
-  const headerRow = makeEl('div','row spread profile-actions','');
+  const headerRow = makeEl('div','row profile-actions','');
   const back = makeEl('a','btn btn-ghost','← Volver');
   back.href = '#/ruta';
-  const edit = makeEl('a','btn','Editar perfil');
-  edit.href = '#/perfil';
   headerRow.appendChild(back);
-  headerRow.appendChild(edit);
   container.appendChild(headerRow);
 
   const prof = getProfile();
@@ -144,10 +143,10 @@ export function renderUserProfile(root, routesIndex){
     heroTitleBox.appendChild(pill);
   }
   heroTitleRow.appendChild(heroTitleBox);
-  const tip = makeEl('div','profile-hero__tip','');
-  tip.appendChild(makeEl('span','profile-hero__tip-ico','⚙️'));
-  tip.appendChild(makeEl('span','profile-hero__tip-txt','Ajustes'));
-  heroTitleRow.appendChild(tip);
+  // Acción del héroe: mover aquí el botón de "Editar perfil" (sustituye Ajustes)
+  const editHero = makeEl('a','btn btn-ghost profile-hero__edit','Editar perfil');
+  editHero.href = '#/perfil';
+  heroTitleRow.appendChild(editHero);
   hero.appendChild(heroTitleRow);
 
   const bubble = makeEl('div','profile-hero__bubble','');
@@ -193,10 +192,10 @@ export function renderUserProfile(root, routesIndex){
   metricsCard.appendChild(mHead);
 
   const metrics = makeEl('div','metrics-grid','');
-  metrics.appendChild(metricCard('Rutas Completadas', routesCompleted, '🗺️'));
-  metrics.appendChild(metricCard('Paradas completadas', stopsCompleted, '📍'));
-  metrics.appendChild(metricCard('Bares Favoritos', favsTotal, '♥'));
-  metrics.appendChild(metricCard('Media de mejor ruta', bestAvg ? (bestAvg + '★') : '—', '⭐'));
+  metrics.appendChild(metricCard('Rutas Completadas', routesCompleted, '🗺️', '#/perfil-rutas'));
+  metrics.appendChild(metricCard('Paradas completadas', stopsCompleted, '📍', '#/perfil-paradas'));
+  metrics.appendChild(metricCard('Bares Favoritos', favsTotal, '♥', '#/perfil-favoritos'));
+  metrics.appendChild(metricCard('Media de mejor ruta', bestAvg ? (bestAvg + '★') : '—', '⭐', '#/perfil-mejores'));
   metricsCard.appendChild(metrics);
   container.appendChild(metricsCard);
 

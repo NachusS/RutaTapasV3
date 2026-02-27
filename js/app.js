@@ -3,6 +3,12 @@ import { loadRoutesIndex, renderSelectRoute } from './routes.js';
 import { loadRouteStops, renderActiveRoute, renderStopDetails, renderMapView } from './stops.js';
 import { renderDashboard } from './dashboard.js';
 import { renderUserProfile } from './user_profile.js';
+import { 
+  renderProfileRoutesCompleted,
+  renderProfileStopsCompleted,
+  renderProfileFavoritesAll,
+  renderProfileTopRatedStops
+} from './profile_lists.js';
 
 const App = { state: { routesIndex: null, currentRoute: null, currentStops: null } };
 
@@ -344,7 +350,8 @@ async function route(){
   // Tabs inferiores (estilo app)
   const tab = (path === '/' || path === '/welcome') ? 'inicio'
     : (path === '/favoritos') ? 'favoritos'
-    : (path === '/mi-perfil' || path === '/perfil' || path === '/dashboard' || path === '/logros') ? 'perfil'
+    : (path === '/mi-perfil' || path === '/perfil' || path === '/dashboard' || path === '/logros'
+        || path === '/perfil-rutas' || path === '/perfil-paradas' || path === '/perfil-favoritos' || path === '/perfil-mejores') ? 'perfil'
     : 'rutas';
   setActiveTab(tab);
 
@@ -403,6 +410,34 @@ async function route(){
     await initData();
     renderUserProfile(app, App.state.routesIndex);
     focusApp(); return;
+  }
+
+  if(path === '/perfil-rutas'){
+    await initData();
+    await renderProfileRoutesCompleted(app, App.state.routesIndex);
+    focusApp();
+    return;
+  }
+
+  if(path === '/perfil-paradas'){
+    await initData();
+    await renderProfileStopsCompleted(app, App.state.routesIndex);
+    focusApp();
+    return;
+  }
+
+  if(path === '/perfil-favoritos'){
+    await initData();
+    await renderProfileFavoritesAll(app, App.state.routesIndex);
+    focusApp();
+    return;
+  }
+
+  if(path === '/perfil-mejores'){
+    await initData();
+    await renderProfileTopRatedStops(app, App.state.routesIndex);
+    focusApp();
+    return;
   }
 
   if(path === '/dashboard'){ renderDashboard(app, App.state.routesIndex); focusApp(); return; }
