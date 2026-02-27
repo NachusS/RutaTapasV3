@@ -457,6 +457,13 @@ async function initRouteMap(el, data, routeId){
   const bounds = new window.google.maps.LatLngBounds();
   const info = new window.google.maps.InfoWindow();
 
+  let infoOpenStopId = null;
+  let infoSuppressedStopId = null;
+  info.addListener('closeclick', ()=>{
+    infoSuppressedStopId = infoOpenStopId;
+    infoOpenStopId = null;
+  });
+
   // Icono simple con emoji (solo para el marcador del usuario)
   function emojiIcon(emoji, size){
     const s = Number(size || 34);
@@ -510,8 +517,11 @@ async function initRouteMap(el, data, routeId){
     };
   }
 
-  function openStopPopup(stop){
+  function openStopPopup(stop, force){
     if(!stop || !stop.__marker) return;
+    if(!force && infoSuppressedStopId && stop.id === infoSuppressedStopId) return;
+    if(force) infoSuppressedStopId = null;
+    infoOpenStopId = stop.id;
     const wrap = document.createElement('div');
     wrap.style.maxWidth = '260px';
     wrap.style.background = '#ffffff';
@@ -613,7 +623,7 @@ async function initRouteMap(el, data, routeId){
       icon: stopMarkerIcon(s, { seq, isFirst: seq === 1, isLast, done: isDone0, skipped: isSkip0 })
     });
     s.__marker = mk;
-    mk.addListener('click', ()=> openStopPopup(s));
+    mk.addListener('click', ()=> openStopPopup(s, true));
     bounds.extend(p);
   });
 
@@ -695,22 +705,70 @@ async function initRouteMap(el, data, routeId){
     return nextStop(routeId, stops, prog);
   }
 
-  function routeUserToStop(stop){
+  let lastAutoRouteStopId = null;
+  let lastAutoRouteAt = 0;
+
+  function triggerMapResize(){
+    try{ window.google.maps.event.trigger(map,'resize'); }catch(_e){}
+  }
+
+  function fitMapToBounds(b){
+    if(!b) return;
+    const pad = document.body.classList.contains('is-map-max') ? 64 : 48;
+    requestAnimationFrame(()=>{
+      triggerMapResize();
+      try{ map.fitBounds(b, pad); }catch(_e){
+        try{ map.fitBounds(b); }catch(__e){}
+      }
+      setTimeout(()=>{
+        triggerMapResize();
+        try{ map.fitBounds(b, pad); }catch(_e){}
+      }, 60);
+    });
+  }
+
+  function refitUserRoute(){
+    try{
+      const d = userRouteRenderer.getDirections ? userRouteRenderer.getDirections() : null;
+      const b = d && d.routes && d.routes[0] && d.routes[0].bounds;
+      if(b) fitMapToBounds(b);
+    }catch(_e){}
+  }
+
+  function routeUserToStop(stop, opts){
     if(!stop) return;
+    const o = opts || {};
+    const focus = o.focus !== false;
+    const openPopup = o.openPopup !== false;
+    const fit = o.fit !== false;
+    const forcePopup = !!o.forcePopup;
+    const auto = !!o.auto;
+
     pendingStop = stop;
 
-    // Siempre enfocar la parada y mostrar popup
-    try{
-      map.panTo({ lat: stop.lat, lng: stop.lng });
-      const z = map.getZoom ? map.getZoom() : null;
-      if(typeof z === 'number' && z < 16) map.setZoom(16);
-    }catch(_e){}
-    openStopPopup(stop);
+    if(focus){
+      try{
+        map.panTo({ lat: stop.lat, lng: stop.lng });
+        const z = map.getZoom ? map.getZoom() : null;
+        if(typeof z === 'number' && z < 16) map.setZoom(16);
+      }catch(_e){}
+    }
 
-    // Si no tenemos posición del usuario todavía, no podemos trazar la ruta azul
-    // (no mostramos recordatorios; simplemente centramos y abrimos el popup)
+    if(openPopup){
+      openStopPopup(stop, forcePopup);
+    }
+
     if(!lastUserPos){
       return;
+    }
+
+    const now = Date.now();
+    if(auto && lastAutoRouteStopId === stop.id && (now - lastAutoRouteAt) < 1500){
+      return;
+    }
+    if(auto){
+      lastAutoRouteStopId = stop.id;
+      lastAutoRouteAt = now;
     }
 
     dirSvc.route({
@@ -720,24 +778,35 @@ async function initRouteMap(el, data, routeId){
     }, (result, status)=>{
       if(status === 'OK' && result){
         userRouteRenderer.setDirections(result);
-        // Ajustar el viewport para que se vea completa la ruta desde "mi ubicación" a la parada.
-        try{
-          const r0 = result.routes && result.routes[0];
-          if(r0 && r0.bounds){
-            map.fitBounds(r0.bounds, { top: 54, right: 54, bottom: 54, left: 54 });
-          }
-        }catch(_e){}
+        if(fit){
+          try{
+            const r0 = result.routes && result.routes[0];
+            if(r0 && r0.bounds){
+              fitMapToBounds(r0.bounds);
+            }
+          }catch(_e){}
+        }
       }
     });
   }
 
   function ensureUserRoute(){
     const prog = getProg();
-    // Auto-activar si ya se empezó antes
     const started = !!(prog && prog.startedAt);
     const target = pendingStop || getNextStopFromProg();
-    if(started && target) routeUserToStop(target);
+    if(started && target){
+      // Actualiza la ruta azul sin forzar popup ni reencuadre (evita que reaparezca al cerrar)
+      routeUserToStop(target, { auto: true, focus: false, openPopup: false, fit: false });
+    }
   }
+
+  function onMapResized(){
+    triggerMapResize();
+    refitUserRoute();
+  }
+
+  window.addEventListener('rt:mapResized', onMapResized);
+  window.addEventListener('resize', onMapResized);
 
   if('geolocation' in navigator){
     const watchId = navigator.geolocation.watchPosition((pos)=>{
@@ -767,12 +836,12 @@ async function initRouteMap(el, data, routeId){
   // Eventos desde UI: comenzar / siguiente (sin re-render)
   function onStart(){
     const target = getNextStopFromProg();
-    if(target) routeUserToStop(target);
+    if(target) routeUserToStop(target, { forcePopup: true, fit: true, openPopup: true, focus: true });
   }
   function onGoToStop(e){
     const stopId = e && e.detail ? e.detail.stopId : null;
     const target = stopId ? stops.find(s => s.id === stopId) : getNextStopFromProg();
-    if(target) routeUserToStop(target);
+    if(target) routeUserToStop(target, { forcePopup: true, fit: true, openPopup: true, focus: true });
   }
   window.addEventListener('rt:startRoute', onStart);
   window.addEventListener('rt:goToStop', onGoToStop);
@@ -796,6 +865,8 @@ async function initRouteMap(el, data, routeId){
       window.removeEventListener('rt:startRoute', onStart);
       window.removeEventListener('rt:goToStop', onGoToStop);
       window.removeEventListener('rt:stopStatus', onStopStatus);
+      window.removeEventListener('rt:mapResized', onMapResized);
+      window.removeEventListener('resize', onMapResized);
       obs2.disconnect();
     }
   });
@@ -1029,6 +1100,7 @@ export function renderActiveRoute(root, route, data){
       if(m){
         const c = m.getCenter ? m.getCenter() : null;
         window.google.maps.event.trigger(m,'resize');
+        try{ window.dispatchEvent(new Event('rt:mapResized')); }catch(_e){}
         if(c && m.setCenter) m.setCenter(c);
       }
     }, 220);
