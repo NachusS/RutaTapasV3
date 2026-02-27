@@ -517,11 +517,8 @@ async function initRouteMap(el, data, routeId){
     };
   }
 
-  function openStopPopup(stop, force){
-    if(!stop || !stop.__marker) return;
-    if(!force && infoSuppressedStopId && stop.id === infoSuppressedStopId) return;
-    if(force) infoSuppressedStopId = null;
-    infoOpenStopId = stop.id;
+  
+  function buildStopPopupContent(stop){
     const wrap = document.createElement('div');
     wrap.style.maxWidth = '260px';
     wrap.style.background = '#ffffff';
@@ -535,9 +532,40 @@ async function initRouteMap(el, data, routeId){
     const t = document.createElement('div');
     t.style.fontWeight = '900';
     t.style.color = '#0f1724';
-    t.style.marginBottom = '6px';
+    t.style.marginBottom = '8px';
     t.textContent = stop.name || 'Parada';
     wrap.appendChild(t);
+
+    // ETA + distancia desde la posición del usuario (si existe)
+    if(lastUserPos){
+      const pill = document.createElement('div');
+      pill.style.display = 'inline-flex';
+      pill.style.alignItems = 'center';
+      pill.style.gap = '8px';
+      pill.style.borderRadius = '999px';
+      pill.style.padding = '6px 10px';
+      pill.style.marginBottom = '8px';
+      pill.style.background = '#f1f5f9';
+      pill.style.color = '#0f1724';
+      pill.style.fontSize = '12px';
+      pill.style.fontWeight = '800';
+
+      const ico = document.createElement('span');
+      ico.textContent = '🚶';
+      pill.appendChild(ico);
+
+      const txt = document.createElement('span');
+      const eta = stop.__etaText || '';
+      const dist = stop.__distText || '';
+      if(eta || dist){
+        txt.textContent = (eta + (eta && dist ? ' · ' : '') + dist).trim();
+      }else{
+        txt.textContent = 'Calculando…';
+      }
+      pill.appendChild(txt);
+
+      wrap.appendChild(pill);
+    }
 
     if(stop.tapa){
       const s = document.createElement('div');
@@ -554,8 +582,28 @@ async function initRouteMap(el, data, routeId){
       a.textContent = stop.address;
       wrap.appendChild(a);
     }
-    info.setContent(wrap);
+
+    return wrap;
+  }
+
+  function openStopPopup(stop, force){
+    if(!stop || !stop.__marker) return;
+    if(!force && infoSuppressedStopId && stop.id === infoSuppressedStopId) return;
+    if(force) infoSuppressedStopId = null;
+    infoOpenStopId = stop.id;
+    info.setContent(buildStopPopupContent(stop));
     info.open({ map, anchor: stop.__marker });
+  }
+
+  function updatePopupIfOpen(stop){
+    try{
+      if(!stop) return;
+      if(infoOpenStopId !== stop.id) return;
+      // Si el usuario cerró el popup, no lo reabrimos.
+      if(infoSuppressedStopId && stop.id === infoSuppressedStopId) return;
+      if(!info.getMap || !info.getMap()) return;
+      info.setContent(buildStopPopupContent(stop));
+    }catch(_e){}
   }
 
   // ===== Marcadores: fin de ruta + paradas con chincheta (número / ✓) =====
@@ -778,6 +826,17 @@ async function initRouteMap(el, data, routeId){
     }, (result, status)=>{
       if(status === 'OK' && result){
         userRouteRenderer.setDirections(result);
+        try{
+          const r0 = result.routes && result.routes[0];
+          const leg0 = r0 && r0.legs && r0.legs[0];
+          if(leg0){
+            stop.__etaText = (leg0.duration && leg0.duration.text) ? leg0.duration.text : '';
+            stop.__distText = (leg0.distance && leg0.distance.text) ? leg0.distance.text : '';
+            stop.__etaUpdatedAt = Date.now();
+            updatePopupIfOpen(stop);
+          }
+        }catch(_e){}
+
         if(fit){
           try{
             const r0 = result.routes && result.routes[0];
