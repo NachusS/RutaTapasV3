@@ -457,7 +457,6 @@ async function initRouteMap(el, data, routeId){
   const bounds = new window.google.maps.LatLngBounds();
   const info = new window.google.maps.InfoWindow();
 
-  // Icono simple con emoji (solo para el marcador del usuario)
   function emojiIcon(emoji, size){
     const s = Number(size || 34);
     const svg = [
@@ -471,39 +470,6 @@ async function initRouteMap(el, data, routeId){
       url,
       scaledSize: new window.google.maps.Size(s, s),
       anchor: new window.google.maps.Point(s/2, s/2)
-    };
-  }
-
-  // Chincheta estilo Google con texto embebido (número / ✓ / 🏁)
-  function pinIcon(opts){
-    const size = Number((opts && opts.size) || 38);
-    const fill = String((opts && opts.fill) || '#EA4335');
-    const glyph = String((opts && opts.glyph) || '');
-    const glyphColor = String((opts && opts.glyphColor) || '#ffffff');
-    const showCircle = !!(opts && opts.circle);
-
-    // Dibujo en viewBox 48x48 para tener buena definición al escalar
-    const fontSize = glyph.length === 1 ? 18 : 16;
-    const yText = 21.5;
-    const svg = [
-      '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">',
-      '<path d="M24 2C15.2 2 8 9.2 8 18c0 12 16 28 16 28s16-16 16-28C40 9.2 32.8 2 24 2z" fill="', fill, '" stroke="rgba(0,0,0,0.25)" stroke-width="2"/>',
-      (showCircle
-        ? '<circle cx="24" cy="18" r="10" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.85)" stroke-width="2"/>'
-        : ''),
-      (glyph
-        ? '<text x="24" y="', yText, '" text-anchor="middle" font-family="system-ui,-apple-system,Segoe UI,Roboto,Arial" font-size="', fontSize, '" font-weight="900" fill="', glyphColor, '">',
-          glyph,
-          '</text>'
-        : ''),
-      '</svg>'
-    ].join('');
-
-    const url = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
-    return {
-      url,
-      scaledSize: new window.google.maps.Size(size, size),
-      anchor: new window.google.maps.Point(size/2, size),
     };
   }
 
@@ -545,70 +511,27 @@ async function initRouteMap(el, data, routeId){
     info.open({ map, anchor: stop.__marker });
   }
 
-  // ===== Marcadores: fin de ruta + paradas con chincheta (número / ✓) =====
+  // ===== Marcadores: inicio/fin + paradas (SIN chincheta) =====
   const prog0 = getProgress(routeId);
   const doneSet0 = new Set((prog0 && Array.isArray(prog0.completedStopIds)) ? prog0.completedStopIds : []);
   const skipSet0 = new Set((prog0 && Array.isArray(prog0.skippedStopIds)) ? prog0.skippedStopIds : []);
 
-  // Punto final (para bandera) - se mostrará como bandera embebida.
-  // Si coincide con una parada, usamos la propia parada final para evitar duplicados.
-  const endMeta = (data && data.meta && data.meta.end
-    && typeof data.meta.end.lat === 'number' && typeof data.meta.end.lng === 'number')
-    ? { lat: data.meta.end.lat, lng: data.meta.end.lng }
-    : null;
-
-  function nearlySameCoord(a, b){
-    if(!a || !b) return false;
-    const eps = 0.00001; // ~1m aprox
-    return Math.abs(a.lat - b.lat) < eps && Math.abs(a.lng - b.lng) < eps;
+  if(data && data.meta && data.meta.start){
+    const p = { lat: data.meta.start.lat, lng: data.meta.start.lng };
+    new window.google.maps.Marker({ position: p, map, icon: emojiIcon('🏁', 36) });
+    bounds.extend(p);
+  }
+  if(data && data.meta && data.meta.end){
+    const p = { lat: data.meta.end.lat, lng: data.meta.end.lng };
+    new window.google.maps.Marker({ position: p, map, icon: emojiIcon('🏁', 36) });
+    bounds.extend(p);
   }
 
-  // Determinar parada final por orden
-  const lastStop = stops.length ? stops[stops.length-1] : null;
-  const lastStopPoint = lastStop ? { lat: lastStop.lat, lng: lastStop.lng } : null;
-  const endUsesSeparateMarker = !!(endMeta && (!lastStopPoint || !nearlySameCoord(endMeta, lastStopPoint)));
-
-  if(endUsesSeparateMarker && endMeta){
-    new window.google.maps.Marker({
-      position: endMeta,
-      map,
-      icon: pinIcon({ glyph: '🏁', fill: '#EA4335', size: 40, circle: false })
-    });
-    bounds.extend(endMeta);
-  }
-
-  function stopMarkerIcon(stop, flags){
-    const seq = Number(stop.order || 0) || Number(flags && flags.seq || 0) || 0;
-    const isFirst = !!(flags && flags.isFirst);
-    const isLast = !!(flags && flags.isLast);
-    const isDone = !!(flags && flags.done);
-    const isSkipped = !!(flags && flags.skipped);
-
-    if(isDone){
-      return pinIcon({ glyph: '✓', fill: '#22c55e', size: 38 });
-    }
-    if(isSkipped){
-      return pinIcon({ glyph: '⏭', fill: '#94a3b8', size: 38 });
-    }
-    // La última parada muestra bandera a cuadros embebida.
-    const glyph = isLast ? '🏁' : String(seq || '');
-    return pinIcon({ glyph, fill: '#EA4335', size: 38, circle: isFirst });
-  }
-
-  stops.forEach((s, idx)=>{
+  stops.forEach((s)=>{
     const p = { lat: s.lat, lng: s.lng };
-    const seq = Number(s.order || 0) || (idx+1);
-    s.__seq = seq;
     const isDone0 = doneSet0.has(s.id);
     const isSkip0 = skipSet0.has(s.id);
-
-    const isLast = (idx === stops.length - 1) && !endUsesSeparateMarker;
-
-    const mk = new window.google.maps.Marker({
-      position: p,
-      map,
-      icon: stopMarkerIcon(s, { seq, isFirst: seq === 1, isLast, done: isDone0, skipped: isSkip0 })
-    });
+    const mk = new window.google.maps.Marker({ position: p, map, icon: emojiIcon(isDone0 ? '✅' : (isSkip0 ? '⏭️' : '📍'), 32) });
     s.__marker = mk;
     mk.addListener('click', ()=> openStopPopup(s));
     bounds.extend(p);
@@ -717,13 +640,6 @@ async function initRouteMap(el, data, routeId){
     }, (result, status)=>{
       if(status === 'OK' && result){
         userRouteRenderer.setDirections(result);
-        // Ajustar el viewport para que se vea completa la ruta desde "mi ubicación" a la parada.
-        try{
-          const r0 = result.routes && result.routes[0];
-          if(r0 && r0.bounds){
-            map.fitBounds(r0.bounds, { top: 54, right: 54, bottom: 54, left: 54 });
-          }
-        }catch(_e){}
       }
     });
   }
@@ -779,10 +695,7 @@ async function initRouteMap(el, data, routeId){
       if(!d || !d.stopId) return;
       const stop = stops.find(s => s.id === d.stopId);
       if(stop && stop.__marker){
-        const seq = Number(stop.__seq || stop.order || 0) || 0;
-        const idx = stops.findIndex(s => s.id === d.stopId);
-        const isLast = (idx === stops.length - 1) && !endUsesSeparateMarker;
-        stop.__marker.setIcon(stopMarkerIcon(stop, { seq, isFirst: seq === 1, isLast, done: !!d.done, skipped: !!d.skipped }));
+        stop.__marker.setIcon(emojiIcon(d.skipped ? '⏭️' : (d.done ? '✅' : '📍'), 32));
       }
     }catch(_e){}
   }
@@ -830,8 +743,8 @@ export function renderActiveRoute(root, route, data){
   head.appendChild(title);
 
   const legend = makeEl('div','legend-right','');
-  legend.appendChild(makeEl('span','legend-item','🏁 Fin'));
-  legend.appendChild(makeEl('span','legend-item','📌 Parada (número)'));
+  legend.appendChild(makeEl('span','legend-item','🏁 Inicio/Fin'));
+  legend.appendChild(makeEl('span','legend-item','📍 Parada'));
   legend.appendChild(makeEl('span','legend-item','👤 Yo'));
   head.appendChild(legend);
 
