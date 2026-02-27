@@ -236,8 +236,11 @@ export function renderWelcome(root){
       const next = { name, handle: deriveHandle(name), avatar: selectedAvatar, photoDataUrl: chosenPhotoDataUrl };
       saveProfile(next);
       if(window.RT_TOAST) window.RT_TOAST('Perfil creado');
-      // Vuelve a la bienvenida (pantalla 1-1)
-      window.location.hash = '#/welcome';
+      // Primera vez: tras crear perfil, ir a selección de rutas.
+      // En los siguientes accesos (cuando el perfil ya exista), se mostrará la pantalla 1-1.
+      window.setTimeout(()=>{
+        window.location.hash = '#/seleccionar';
+      }, 250);
     });
 
     container.appendChild(form);
