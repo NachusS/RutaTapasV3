@@ -673,6 +673,9 @@ body.theme-dark .welcome-handle{ background: rgba(255,255,255,.10); }
   border-radius: 1.6rem;
   display:grid;
   place-items:center;
+  /* Iconos grandes (emoji) para ocupar visualmente la caja */
+  font-size: 4.0rem;
+  line-height: 1;
   color:#fff;
   box-shadow: 0 12px 18px rgba(0,0,0,.10);
 }
